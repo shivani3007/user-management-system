@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { User } from './user.entity';
 import { Repository } from 'typeorm';
-import { Role } from '../roles/role.entity'; // Ensure correct path
+import { User } from './user.entity';
+import { Role } from '../roles/role.entity';
+import * as bcrypt from 'bcrypt';
 
 describe('UsersService', () => {
-  let service: UsersService;
+  let usersService: UsersService;
   let userRepository: Repository<User>;
   let roleRepository: Repository<Role>;
 
@@ -17,54 +18,61 @@ describe('UsersService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: {
-            findOne: jest.fn().mockResolvedValue(null),
-            save: jest.fn().mockResolvedValue(null),
-            create: jest.fn().mockImplementation((dto) => dto),
+            save: jest.fn(),
+            findOne: jest.fn(),
+            create: jest.fn(),
           },
         },
         {
           provide: getRepositoryToken(Role),
           useValue: {
-            findOne: jest.fn().mockResolvedValue({ id: 1, name: 'Admin' }), // Mock role
+            findOne: jest.fn(),
           },
         },
       ],
     }).compile();
 
-    service = module.get<UsersService>(UsersService);
+    usersService = module.get<UsersService>(UsersService);
     userRepository = module.get<Repository<User>>(getRepositoryToken(User));
     roleRepository = module.get<Repository<Role>>(getRepositoryToken(Role));
   });
 
-  it('should create a user with a valid roleId', async () => {
+  it('should create a user', async () => {
+    const mockRole = { id: 1, name: 'user', users: [] };
+    jest
+      .spyOn(roleRepository, 'findOne')
+      .mockResolvedValue(Promise.resolve(mockRole));
+
     const mockUser = {
       id: 1,
       name: 'John Doe',
       email: 'test@example.com',
-      password: 'hashedPassword',
-      roleId: 1, // Foreign key reference
+      password: await bcrypt.hash('password', 10),
+      role: mockRole,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    jest
-      .spyOn(roleRepository, 'findOne')
-      .mockResolvedValue({ id: 1, name: 'Admin' });
-    jest.spyOn(userRepository, 'save').mockResolvedValue(mockUser);
 
-    const result = await service.register({
-      name: 'John Doe',
-      email: 'test@example.com',
-      password: 'hashedPassword',
-      roleId: 1, // Pass roleId instead of role
+    jest.spyOn(userRepository, 'save').mockResolvedValue({
+      ...mockUser,
+      hashPassword: jest.fn(),
     });
 
-    expect(result).toEqual(mockUser);
+    const result = await usersService.register({
+      name: 'John Doe',
+      email: 'test@example.com',
+      password: 'password',
+    });
+
     expect(roleRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-    expect(userRepository.save).toHaveBeenCalledWith({
-      name: 'John Doe',
-      email: 'test@example.com',
-      password: 'hashedPassword',
-      roleId: 1,
-    });
+    expect(userRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'John Doe',
+        email: 'test@example.com',
+        password: 'dsnfddgvbfdnvfgv',
+        role: mockRole,
+      }),
+    );
+    expect(result).toEqual(expect.objectContaining(mockUser));
   });
 });

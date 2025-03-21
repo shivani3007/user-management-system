@@ -10,6 +10,6 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'user_db',
   entities: ['src/**/*.entity.ts'], // Auto-load all entities
   migrations: ['src/migrations/*.ts'], // Migrations location
-  synchronize: false, // Don't use in production
+  synchronize: true, // Don't use in production
   logging: true,
 });
