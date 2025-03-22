@@ -6,7 +6,8 @@ user-management-system
 
 ## Environment Variables
 
-DB_HOST=my_postgres
+DB_HOST=my_postgres // if running through docker
+DB_HOST=localhost // if running locally using npm run commands
 
 DB_PORT=5432
 
